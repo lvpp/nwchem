@@ -536,6 +536,9 @@ c                                      be used
 c       CHARGE_CORRECTION SCALE      : Scale the electron surface
 c                                      charges and the nuclear surface
 c                                      charges
+c       CHARGE_CORRECTION EQUIP      : Assures the total charge (monopole)
+c                                      is respected with an equipotential
+c                                      correction of surface charges
 c       CHARGE_CORRECTION LAGRANGIAN : Use a Lagrangian constraint to
 c                                      variationally correct the charges
 c       the default is: CHARGE_CORRECTION LAGRANGIAN unless the
@@ -554,9 +557,12 @@ c
           cosmo_sccor = COSMO_SCCOR_SCALE
         else if (inp_compare(.false.,'lagrangian',token)) then
           cosmo_sccor = COSMO_SCCOR_LAGRA
+        else if (inp_compare(.false.,'equip',token)) then
+          cosmo_sccor = COSMO_SCCOR_EQUIP
         else
           write(luout,*)"invalid option for CHARGE_CORRECTION, valid "
      $                //"options are:"
+          write(luout,*)"- EQUIP for an equipotential correction"
           write(luout,*)"- LAGRANGIAN for a variational constraint"
           write(luout,*)"- SCALE      for a plain charge scaling"
           write(luout,*)"- NO         for no correction"

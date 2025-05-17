@@ -30,9 +30,11 @@ c
       integer COSMO_SCCOR_NO
       integer COSMO_SCCOR_SCALE
       integer COSMO_SCCOR_LAGRA
+      integer COSMO_SCCOR_EQUIP
       parameter (COSMO_SCCOR_NO    = 10)
       parameter (COSMO_SCCOR_SCALE = 11)
       parameter (COSMO_SCCOR_LAGRA = 12)
+      parameter (COSMO_SCCOR_EQUIP = 13)
 c
 c     COSMO linear system solver identifier
 c     - COSMO_LINEQ_DIRECT    : Use the direct solver (matrix in memory

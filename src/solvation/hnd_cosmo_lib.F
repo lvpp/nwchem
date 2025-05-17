@@ -2020,7 +2020,8 @@ C>
 C> Compute matrix `A` as needed for the in-memory COSMO
 C> charge fitting.
 C>
-      subroutine hnd_cosmata(nat,nefc,efcc,efcs,efczz,efciat,ratm,a)
+      subroutine hnd_cosmata(nat,nefc,efcc,efcs,efczz,efciat,ratm,a,
+     $                       neqs)
       implicit none
 #include "cosmoP.fh"
 #include "cosmo_params.fh"
@@ -2032,7 +2033,9 @@ C>
       integer          efciat(nat)  !< [Input] The atom of a surface 
                                     !< charge
       double precision ratm(nat)    !< [Input] The atom radii
-      double precision a(nefc,nefc) !< [Output] Matrix `A`
+      double precision a(neqs,neqs) !< [Output] Matrix `A`
+      integer neqs                  !< [Input] number of equations,
+                                    !< neqs=nefc if no equip correction should be included
 c
       integer jef, ief
       double precision aii, xi, xj, yi, yj, zi, zj, dij, one
@@ -2045,15 +2048,21 @@ c
       double precision pi
       pi = acos(-1.0d0)
 c
-      call dfill(nefc**2,0d0,a,1)
+      call dfill(neqs**2,0d0,a,1)
 c
       if (do_cosmo_model.eq.DO_COSMO_KS) then
-        do jef=1,nefc
-          xj=efcc(1,jef)
-          yj=efcc(2,jef)
-          zj=efcc(3,jef)
-          do ief=1,nefc
-            if(ief.eq.jef) then
+        do jef=1,neqs
+          if(jef.le.nefc) then
+            xj=efcc(1,jef)
+            yj=efcc(2,jef)
+            zj=efcc(3,jef)
+          end if
+          do ief=1,neqs
+c           Handling the equipotential equations, eq. 3 doi:??
+            if((jef.gt.nefc).or.(ief.gt.nefc)) then
+              if(jef.ne.ief) a(ief,jef)=one
+c
+            else if(ief.eq.jef) then
               aii=adiag/sqrt(efcs(ief))
               a(ief,jef)=aii
             else

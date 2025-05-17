@@ -514,6 +514,7 @@ c
       character*255 cosmo_file_in
       character*(nw_max_path_len) cosmo_file
       integer fn
+      integer neqs          ! Number of equations = nefc or nefc+1 (equip correction)
 c      integer lineq ! 0: fast direct solver, 1: slow iterative solver
 c      integer minbem 
 c      integer maxbem 
@@ -556,7 +557,7 @@ c
       double precision chgina ! the inv(A) COSMO charge
       double precision corcos ! the COSMO charge correction
       double precision errcos ! the COSMO charge error
-      double precision delchg ! charge difference
+      double precision delchg ! charge difference for convergence check
       double precision aii,aij,bij,chgief,dij,deta,dum,oldief
       double precision atmefc ! atom - COSMO charge interaction
       double precision efcefc ! COSMO charge - COSMO charge interaction
@@ -614,7 +615,15 @@ c
 c
       oprint_energies = util_print("cosmo_energies",print_never)
       oprint_energies = oprint_energies.and.(ga_nodeid().eq.0)
-      
+c
+c     In the equipotential method, we solve nefc+1 equations
+      neqs=nefc
+      if (cosmo_sccor.eq.COSMO_SCCOR_EQUIP) then
+        neqs=nefc+1
+c       TODO: for now only dense linear solver and KS method
+        lineq=0
+        do_cosmo_model=DO_COSMO_KS
+      end if
 c
       wgsrf_cosmo_vem = zero
       wstar_cosmo_vem = zero
@@ -709,13 +718,13 @@ c
 c     ----- get electrostatic potential at surface points -----
 c
 c     --- total field
-      if (.not.ma_push_get(mt_dbl,nefc,"hnd_coschg:i10",l_i10,i10))
+      if (.not.ma_push_get(mt_dbl,neqs,"hnd_coschg:i10",l_i10,i10))
      &   call errquit("hnd_coschg: malloc i10 failed",913,MA_ERR)
 c     --- nuclear field
-      if (.not.ma_push_get(mt_dbl,nefc,"hnd_coschg:i11",l_i11,i11))
+      if (.not.ma_push_get(mt_dbl,neqs,"hnd_coschg:i11",l_i11,i11))
      &   call errquit("hnd_coschg: malloc i11 failed",914,MA_ERR)
 c     --- electron field
-      if (.not.ma_push_get(mt_dbl,nefc,"hnd_coschg:i12",l_i12,i12))
+      if (.not.ma_push_get(mt_dbl,neqs,"hnd_coschg:i12",l_i12,i12))
      &   call errquit("hnd_coschg: malloc i12 failed",914,MA_ERR)
 c
 c     ----- calculate electronic contribution at all points -----
@@ -766,19 +775,19 @@ c
       if (lineq.eq.0) then
 c
         stat = .true.
-        stat = stat .and. ma_push_get(mt_dbl,2*nefc,"hnd_coschg i20",
+        stat = stat .and. ma_push_get(mt_dbl,2*neqs,"hnd_coschg i20",
      &                                l_i20,i20)
-        stat = stat .and. ma_push_get(mt_dbl,2*nefc,"hnd_coschg i21",
+        stat = stat .and. ma_push_get(mt_dbl,2*neqs,"hnd_coschg i21",
      &                                l_i21,i21)
-        stat = stat .and. ma_push_get(mt_dbl,2*nefc,"hnd_coschg i22",
+        stat = stat .and. ma_push_get(mt_dbl,2*neqs,"hnd_coschg i22",
      &                                l_i22,i22)
-        stat = stat .and. ma_push_get(mt_dbl,nefc*nefc,"hnd_coschg i30",
+        stat = stat .and. ma_push_get(mt_dbl,neqs*neqs,"hnd_coschg i30",
      &                                l_i30,i30)
-        stat = stat .and. ma_push_get(mt_dbl,nefc,"hnd_coschg i40",
+        stat = stat .and. ma_push_get(mt_dbl,neqs,"hnd_coschg i40",
      &                                l_i40,i40)
-        stat = stat .and. ma_push_get(mt_dbl,nefc,"hnd_coschg i50",
+        stat = stat .and. ma_push_get(mt_dbl,neqs,"hnd_coschg i50",
      &                                l_i50,i50)
-        stat = stat .and. ma_push_get(mt_dbl,nefc,"hnd_coschg i80",
+        stat = stat .and. ma_push_get(mt_dbl,neqs,"hnd_coschg i80",
      &                                l_i80,i80)
 c
 c      check memory
@@ -827,7 +836,8 @@ c
          endif
       endif
 c
- 10   if (cosmo_sccor.eq.COSMO_SCCOR_NO) then
+ 10   if (cosmo_sccor.eq.COSMO_SCCOR_NO.or.
+     $    cosmo_sccor.eq.COSMO_SCCOR_EQUIP) then
         all  = .true.
         nucl = .false.
         elec = .false.
@@ -871,13 +881,16 @@ c
          endif
 
          call dcopy(nefc,dbl_mb(iep),1,dbl_mb(ieq),1)
-         call dfill(nefc,1d0,dbl_mb(ieq+nefc),1)
+         call dfill(neqs,1d0,dbl_mb(ieq+neqs),1)
+c        Handling the equipotential method, see eq. 3 of doi:??
+c        Without the negative sign here, since we scale by -f(e) later.
+         if(cosmo_sccor.eq.COSMO_SCCOR_EQUIP) dbl_mb(ieq+nefc)=charge
 
          call hnd_cosmata(nat,nefc,efcc,efcs,efczz,efciat,ratm,
-     $                    dbl_mb(i30))
+     $                    dbl_mb(i30),neqs)
 c
          nodcmp=0
-         call hnd_linequ(dbl_mb(i30),nefc,dbl_mb(ieq),nefc,
+         call hnd_linequ(dbl_mb(i30),neqs,dbl_mb(ieq),neqs,
      1                   dbl_mb(i40),dbl_mb(i50),ierr,nodcmp)
          if (ierr.ne.0) call errquit("hnd_coschg: hnd_linequ failed",
      &                               ierr,UERR)
@@ -1296,8 +1309,11 @@ c
             write(fn,*) " model=  KS"
             write(fn,"(a,f6.3)") "  rsolv= ", rsolv
          endif
+         write(fn,"(a,f6.3)") "  charge= ", charge
          if (cosmo_sccor.eq.COSMO_SCCOR_NO) then
             write(fn,*) " charge_correction= no"
+         else if (cosmo_sccor.eq.COSMO_SCCOR_EQUIP) then
+            write(fn,*) " charge_correction= equip"
          else if (cosmo_sccor.eq.COSMO_SCCOR_LAGRA) then
             write(fn,*) " charge_correction= lagrangian"
          else if (cosmo_sccor.eq.COSMO_SCCOR_SCALE) then

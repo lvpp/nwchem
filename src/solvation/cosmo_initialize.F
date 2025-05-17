@@ -543,6 +543,8 @@ c
           write(Luout,9972)"scale"
         else if (cosmo_sccor.eq.COSMO_SCCOR_LAGRA) then
           write(Luout,9972)"lagrangian"
+        else if (cosmo_sccor.eq.COSMO_SCCOR_EQUIP) then
+          write(Luout,9972)"equip"
         else
           write(Luout,9972)"*** invalid ***"
         endif
