@@ -442,15 +442,18 @@ c     SES variables
       integer cosmo_cavity
       double precision mfactor, asum, dmin
       real*4 ofac,rd,dvec,rmim
-      INTEGER*4 ndiv
+      INTEGER*4 ndiv,gseg
       double precision segarea(mxface)
       integer          segatom(mxface)
-      integer gseg
       double precision garea, gvolume
+      double precision ratmv(mxatom)
+      integer nlayers
+      double precision dlayer
 c
       double precision ratm_real,dij,dum,cavdsp,pi,zetai,zetaii
       integer m,mfac,mseg
       integer nefc,iat,jat,npp,i,iseg,jseg,ifac,ief,ipp
+      integer nefc0
 
       integer l_dum1, l_dum2, l_attag, k_dum1, k_dum2, k_attag
       character(len=16) aname
@@ -743,8 +746,28 @@ c       We are sending all arguments in A.U.
      &             rmim,'','','',ofac,rd,ndiv,dvec,
      &             .true.,.false.,
      &             nat,ratm,xyzatm,mxface,
-     &             nefc,xyzseg,segarea,segatom,srfmol,volmol,.false.)
+     &             gseg,xyzseg,segarea,segatom,srfmol,volmol,.false.)
+        nefc = gseg
         nseg = nefc
+        nefc0 = nefc
+
+c       Add the additional layers
+        if (.not. rtdb_get(rtdb,'cosmo:nlayers',mt_int,1,
+     $    nlayers)) nlayers=10
+        if (.not. rtdb_get(rtdb,'cosmo:dlayer',mt_dbl,1,
+     $    dlayer)) dlayer=0.5d0
+        do jat=1,nlayers
+          do iat=1,nat
+            ratmv(iat) = ratm(iat)+jat*dlayer
+          end do
+          call gepol('ESURF',.false.,.false.,.false.,.false.,'TIT',0,
+     &      rmim,'','','',ofac,rd,ndiv,dvec,
+     &      .true.,.false.,nat,ratmv,xyzatm,mxface,gseg,
+     &      xyzseg(:,nseg+1:mxface),segarea(nseg+1:mxface),
+     &      segatom(nseg+1:mxface),garea,gvolume,.false.)
+          nseg = nseg + gseg
+          nefc = nseg
+        end do
       end if
 c
 c

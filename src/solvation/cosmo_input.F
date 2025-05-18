@@ -83,6 +83,8 @@ c
       integer cosmo_cavity
       integer cosmo_ndiv
       double precision mfactor
+      integer nlayers
+      double precision dlayer
       logical do_cosmo_file
       logical do_gasphase
       logical status
@@ -142,6 +144,8 @@ c
       cosmo_sccor  = COSMO_SCCOR_LAGRA ! surface charge correction adapted for geometry optimzations
       cosmo_ndiv   = 2   ! used with the SES cavity
       mfactor  =1.00d+00 ! used with the SES cavity
+      nlayers  =10
+      dlayer   =0.5d0
       minbem   =2
       maxbem   =4 ! used with the Klamt-Schuurmann model
       ificos   =0
@@ -429,6 +433,22 @@ c
         if(.not. inp_f(mfactor))
      $     call errquit('cosmo_input: mfactor',911, INPUT_ERR)
         if (.not. rtdb_put(rtdb,'cosmo:mfactor',mt_dbl,1,mfactor))
+     $     call errquit('cosmo_input: rtdb put failed',911, RTDB_ERR)
+c
+c    --- nlayers: TODO
+c
+      else if(inp_compare(.false.,'nlayers',field)) then
+      if(.not. inp_i(nlayers))
+     $     call errquit('cosmo_input: nlayers',911, INPUT_ERR)
+      if (.not. rtdb_put(rtdb,'cosmo:nlayers',mt_int,1,nlayers))
+     $     call errquit('cosmo_input: rtdb put failed',911, RTDB_ERR)
+c
+c    --- dlayer: TODO
+c
+      else if(inp_compare(.false.,'dlayer',field)) then
+      if(.not. inp_f(dlayer))
+     $     call errquit('cosmo_input: dlayer',911, INPUT_ERR)
+      if (.not. rtdb_put(rtdb,'cosmo:dlayer',mt_dbl,1,dlayer))
      $     call errquit('cosmo_input: rtdb put failed',911, RTDB_ERR)
 c
 c   --- parameter file
