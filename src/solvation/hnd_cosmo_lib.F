@@ -442,14 +442,19 @@ c     SES variables
       integer cosmo_cavity
       double precision mfactor, asum, dmin
       real*4 ofac,rd,dvec,rmim
-      INTEGER*4 ndiv, gseg
+      INTEGER*4 ndiv,gseg,ndivl
       double precision segarea(mxface)
       integer          segatom(mxface)
       double precision garea, gvolume
+      double precision ratmv(mxatom)
+      integer nlayers
+      double precision dlayer,dlayerj
 c
       double precision ratm_real,dij,dum,cavdsp,pi,zetai,zetaii
       integer m,mfac,mseg
       integer nefc,iat,jat,npp,i,iseg,jseg,ifac,ief,ipp
+      integer nefcs           ! number of surface segments
+      logical at_surf(mxface) ! if a segment is at surface or inside the conductor
 
       integer l_dum1, l_dum2, l_attag, k_dum1, k_dum2, k_attag
       character(len=16) aname
@@ -744,7 +749,44 @@ c       We are sending all arguments in A.U.
      &             nat,ratm,xyzatm,mxface,
      &             gseg,xyzseg,segarea,segatom,srfmol,volmol,.false.)
         nefc = gseg
-        nseg = gseg
+        nseg = nefc
+        nefcs = nefc
+
+c       Add the additional layers
+        if (.not. rtdb_get(rtdb,'cosmo:nlayers',mt_int,1,
+     $    nlayers)) nlayers=4
+        if (.not. rtdb_get(rtdb,'cosmo:dlayer',mt_dbl,1,
+     $    dlayer)) dlayer=0.5d0
+        dlayer = dlayer/cau2ang
+        do iat=1,nat
+          ratmv(iat) = ratm(iat)
+        end do
+        do jat=1,nlayers
+          dlayerj = dlayer
+          if(jat.eq.1) dlayerj = dlayer/two
+          do iat=1,nat
+            ratmv(iat) = ratmv(iat)+dlayerj
+          end do
+c          ndivl = ndiv
+          ndivl = 1
+          call gepol('ESURF',.false.,.false.,.false.,.false.,'TIT',0,
+     &      rmim,'','','',ofac,rd,ndivl,dvec,
+     &      .true.,.false.,nat,ratmv,xyzatm,mxface,gseg,
+     &      xyzseg(:,nseg+1:mxface),segarea(nseg+1:mxface),
+     &      segatom(nseg+1:mxface),garea,gvolume,.false.)
+c
+c         Adjust the self-interaction energy from area to volume
+          nseg = nseg + gseg
+          do iseg=nefc+1,nseg
+c           We calculate the self energy as aii=adiag/sqrt(efcs(ief))
+c           and we want aii=2*0.941156/cubrt(vol).
+c           For now we assume a cube (eq. 7 of 10.1016/j.physleta.2010.12.029)
+c           so we have an apparent area of:
+            segarea(iseg)=(adiag/1.882312)**2
+     &                    *(dlayer*segarea(iseg))**(2.0/3.0)
+          end do
+          nefc = nseg
+        end do
       end if
 c
 c
@@ -820,6 +862,7 @@ c             Start over, perhaps 3 or more segments should be merged
         end do
 c       Add the segments sorted by atom.
         ief = 0
+        npp = 0
         do iat=1,nat
           do iseg=1,nseg
             if(iat.ne.segatom(iseg).or.segarea(iseg).le.zero) cycle
@@ -828,6 +871,9 @@ c
             dbl_mb(k_efcc+3*(ief-1))  =xyzseg(1,iseg)
             dbl_mb(k_efcc+3*(ief-1)+1)=xyzseg(2,iseg)
             dbl_mb(k_efcc+3*(ief-1)+2)=xyzseg(3,iseg)
+c           If the segment is at surface (or inside the volume)
+            at_surf(ief) = iseg.le.nefcs
+            if(iseg.le.nefcs) npp = npp+1
 
             dbl_mb(k_efcs+ief-1) = segarea(iseg) ! KS area
             if (do_cosmo_model.eq.DO_COSMO_YK) then
@@ -845,6 +891,7 @@ c           Atom map.
         enddo
         nefc = ief
         nseg = nefc
+        nefcs = npp
       else
       srfmol=0d0
       volmol=0d0
@@ -1015,6 +1062,12 @@ c     ----- write out to -rtdb- -----
 c
       if(.not.rtdb_put(rtdb,'cosmo:nefc',mt_int,1     ,nefc))
      $   call errquit('hnd_cossas: rtdb put failed for nefc  ',911,
+     &       rtdb_err)
+      if(.not.rtdb_put(rtdb,'cosmo:nefcs',mt_int,1     ,nefcs))
+     $   call errquit('hnd_cossas: rtdb put failed for nefcs ',911,
+     &       rtdb_err)
+      if(.not.rtdb_put(rtdb,'cosmo:at_surf',mt_log,nefc  , at_surf))
+     $   call errquit('hnd_cossas: rtdb put failed for at_surf',911,
      &       rtdb_err)
       if(.not.rtdb_put(rtdb,'cosmo:efcc',mt_dbl,3*nefc,dbl_mb(k_efcc)))
      $   call errquit('hnd_cossas: rtdb put failed for efcc  ',912,

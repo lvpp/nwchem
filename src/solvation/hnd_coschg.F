@@ -509,6 +509,8 @@ c
 c
       logical  dbug,more,out,direct,noall,all,elec,nucl,iefc_done
       character*16 at_tag
+      integer nefcs         ! number of segments at surface
+      logical at_surf(nefc) ! if a segment is at surface or inside the conductor
       character*255 cosmo_info
       integer istrlen
       character*255 cosmo_file_in
@@ -1264,6 +1266,12 @@ c
       if (do_cosmo_file) then
          if (.not. rtdb_get(rtdb,'cosmo:cavity',mt_int,1,
      $     cosmo_cavity)) cosmo_cavity=COSMO_CAVITY_VDW
+
+         if(.not.rtdb_get(rtdb,'cosmo:nefcs',mt_int,1     ,nefcs))
+     &     call errquit('hnd_coschg: rtdb get failed',911,RTDB_ERR)
+         if(.not.rtdb_get(rtdb,'cosmo:at_surf',mt_log,nefc,at_surf))
+     &     call errquit('hnd_coschg: rtdb get failed',911,RTDB_ERR)
+
          cosmo_file_in = "cosmo"
          call util_file_name(cosmo_file_in,.false.,.false.,cosmo_file)
          call util_file_name_resolve(cosmo_file,.false.)
@@ -1308,7 +1316,7 @@ c
          end if
 c
          write(fn,"(a)") "$cosmo_data"
-         write(fn,"(a,i6)") "  nps= ", nefc
+         write(fn,"(a,i6)") "  nps= ", nefcs
          write(fn,"(a,f10.2)") "  area=   ", srfmol/(cau2ang**2)
          write(fn,"(a,f10.2)") "  volume= ", volmol/(cau2ang**3)
 c
@@ -1340,11 +1348,14 @@ c
      +     "# n atom x y z charge area charge/area potential"
          write(fn,"(a)")
      +   "# coordinates and potential [a.u.], area [A2]"
+         ipt=0
          do ief=1,nefc
+            if(.not.at_surf(ief)) cycle
+            ipt = ipt+1
             efcsi = efcs(ief)*(cau2ang**2)
             if (do_cosmo_model.eq.DO_COSMO_YK)
      +        efcsi = msrf(ief)*(cau2ang**2)
-            write(fn,"(2i6,7f15.9)") ief, efciat(ief),
+            write(fn,"(2i6,7f15.9)") ipt, efciat(ief),
      +      efcc(1,ief), efcc(2,ief), efcc(3,ief),
      +      efcz(ief), efcsi, efcz(ief)/efcsi,
      +      dbl_mb(i10+ief-1)
