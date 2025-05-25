@@ -1295,14 +1295,15 @@ c
          endif
          if(cosmo_cavity.eq.COSMO_CAVITY_SES) then
             write(fn,*) " cavity= SES"
+            write(fn,"(a,f6.3)") "  rsolv= ", rsolv
          else
             write(fn,*) " cavity= vdW"
          endif
          if(do_cosmo_model.eq.DO_COSMO_YK) then
             write(fn,*) " model=  YK"
+            write(fn,"(a,f6.3)") "  zeta= ", zeta
          else
             write(fn,*) " model=  KS"
-            write(fn,"(a,f6.3)") "  rsolv= ", rsolv
          endif
          if (cosmo_sccor.eq.COSMO_SCCOR_NO) then
             write(fn,*) " charge_correction= no"

@@ -838,6 +838,7 @@ c
 c       Checking for overlapping segments to merge.
         iseg = 0
         do while (iseg <= nseg)
+          if (dmin.le.zero) exit
           iseg = iseg + 1
           if(segarea(iseg).le.zero) cycle
           do jseg=iseg+1,nseg
@@ -875,11 +876,15 @@ c           If the segment is at surface (or inside the volume)
             if(iseg.le.nefcs) npp = npp+1
 
             dbl_mb(k_efcs+ief-1) = segarea(iseg) ! KS area
-c           Store the YK variables as well, although they are currently unused
-c           because this combination is blocked in comso_input.F.
-            dbl_mb(k_msrf+ief-1) = segarea(iseg) ! YK area
-            zetai=zeta/sqrt(segarea(iseg))       ! YK zeta
-            dbl_mb(k_efczz+ief-1) = zetai        ! YK, store zeta
+            if (do_cosmo_model.eq.DO_COSMO_YK) then
+c             Store the YK variables.
+              zetai=zeta/sqrt(segarea(iseg)) ! zetai=zeta/sqrt(dsurf)/ratm_real
+              zetaii=zetai*sqrt(2d0/pi)
+              xyzff(iseg,iat) = one ! no segments inside other spheres
+              dbl_mb(k_efcs+ief-1) = zetaii ! zetaii/xyzff(iseg,iat))
+              dbl_mb(k_msrf+ief-1) = segarea(iseg) ! YK area
+              dbl_mb(k_efczz+ief-1) = zetai
+            end if
 c           Atom map.
             int_mb(k_efciat+ief-1) = iat
           enddo
