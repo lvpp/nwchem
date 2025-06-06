@@ -61,6 +61,7 @@ echo HWLOC_FLAGS is $HWLOC_FLAGS
 ./configure --prefix=`pwd`/../.. --enable-fortran=all $SHARED_FLAGS  --disable-cxx --disable-romio  --enable-silent-rules  --enable-fortran=all \
 	    --without-slurm  --with-pm=hydra \
 	    --without-cuda --without-ze --without-hip --without-hcoll \
+	    --with-device=ch3 \
 	    $HWLOC_FLAGS
 #./configure --prefix=`pwd`/../.. --enable-fortran=all $SHARED_FLAGS  --disable-cxx --enable-romio --with-pm=gforker --with-device=ch3:nemesis --disable-cuda --disable-opencl --enable-silent-rules  --enable-fortran=all
 if [[ "$?" != "0" ]]; then
@@ -83,3 +84,8 @@ if [[ "$?" != "0" ]]; then
 fi
 
 make install >& mpich_install.log
+which mpif90
+mpif90 -show
+rm -f ${NWCHEM_TOP}/src/libmpi.txt
+${NWCHEM_TOP}/src/tools/guess-mpidefs --libmpi
+PATH=${NWCHEM_TOP}/src/libext/bin:$PATH ${NWCHEM_TOP}/src/tools/check_libmpi.sh ${NWCHEM_TOP}
