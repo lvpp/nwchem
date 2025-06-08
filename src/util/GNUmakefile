@@ -100,7 +100,7 @@ ifdef NO_MPIF
   LIB_DEFINES += -DNO_MPIF
 endif
 
-ifeq ($(TARGET),$(findstring $(TARGET),BGL BGP BGQ LINUX CYGWIN CYGWIN64 CYGNUS LINUX64 MACX MACX64))
+ifeq ($(TARGET),$(findstring $(TARGET),BGL BGP BGQ LINUX CYGWIN CYGWIN64 MINGW64 CYGNUS LINUX64 MACX MACX64))
   EXTRA_OBJ += linux_cpu.o linux_shift.o linux_random.o  erfc.o linux_printaff.o
   ifeq ($(LINUXCPU),x86)
     EXTRA_OBJ += linux_setfpucw.o
@@ -132,6 +132,11 @@ endif
 ifeq ($(GOTMINGW32),1)
     LIB_DEFINES += -DNO_MPIF
     EXTRA_OBJ += util_mingw.o
+endif
+
+ifeq ($(TARGET),MINGW64)
+  EXTRA_OBJ += util_mingw.o
+  LIB_DEFINES += -DWIN32 -D__MINGW32__ -DNO_MPIF
 endif
 
 ifeq ($(TARGET),HPUX)
